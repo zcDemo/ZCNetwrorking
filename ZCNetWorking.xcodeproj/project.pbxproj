@@ -15,6 +15,12 @@
 		C819F2BA1F0DE78000E3AE76 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C819F2B81F0DE78000E3AE76 /* LaunchScreen.storyboard */; };
 		C819F2C51F0DE78000E3AE76 /* ZCNetWorkingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2C41F0DE78000E3AE76 /* ZCNetWorkingTests.m */; };
 		C819F2D01F0DE78000E3AE76 /* ZCNetWorkingUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2CF1F0DE78000E3AE76 /* ZCNetWorkingUITests.m */; };
+		C819F2E21F0E124600E3AE76 /* ZCURLSessionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2E11F0E124600E3AE76 /* ZCURLSessionManager.m */; };
+		C819F2E51F0E127800E3AE76 /* ZCURLResponseSerialization.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2E41F0E127800E3AE76 /* ZCURLResponseSerialization.m */; };
+		C819F2E81F0E129700E3AE76 /* ZCURLRequestSerialization.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2E71F0E129700E3AE76 /* ZCURLRequestSerialization.m */; };
+		C819F2EB1F0E12C400E3AE76 /* ZCSercurityPolicy.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2EA1F0E12C400E3AE76 /* ZCSercurityPolicy.m */; };
+		C819F2EE1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2ED1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.m */; };
+		C819F2F11F0E132500E3AE76 /* ZCHTTPSessionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = C819F2F01F0E132500E3AE76 /* ZCHTTPSessionManager.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +57,18 @@
 		C819F2CB1F0DE78000E3AE76 /* ZCNetWorkingUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ZCNetWorkingUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C819F2CF1F0DE78000E3AE76 /* ZCNetWorkingUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ZCNetWorkingUITests.m; sourceTree = "<group>"; };
 		C819F2D11F0DE78000E3AE76 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C819F2E01F0E124600E3AE76 /* ZCURLSessionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCURLSessionManager.h; sourceTree = "<group>"; };
+		C819F2E11F0E124600E3AE76 /* ZCURLSessionManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCURLSessionManager.m; sourceTree = "<group>"; };
+		C819F2E31F0E127800E3AE76 /* ZCURLResponseSerialization.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCURLResponseSerialization.h; sourceTree = "<group>"; };
+		C819F2E41F0E127800E3AE76 /* ZCURLResponseSerialization.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCURLResponseSerialization.m; sourceTree = "<group>"; };
+		C819F2E61F0E129700E3AE76 /* ZCURLRequestSerialization.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCURLRequestSerialization.h; sourceTree = "<group>"; };
+		C819F2E71F0E129700E3AE76 /* ZCURLRequestSerialization.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCURLRequestSerialization.m; sourceTree = "<group>"; };
+		C819F2E91F0E12C400E3AE76 /* ZCSercurityPolicy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCSercurityPolicy.h; sourceTree = "<group>"; };
+		C819F2EA1F0E12C400E3AE76 /* ZCSercurityPolicy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCSercurityPolicy.m; sourceTree = "<group>"; };
+		C819F2EC1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCNetworkReachabilityManager.h; sourceTree = "<group>"; };
+		C819F2ED1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCNetworkReachabilityManager.m; sourceTree = "<group>"; };
+		C819F2EF1F0E132500E3AE76 /* ZCHTTPSessionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZCHTTPSessionManager.h; sourceTree = "<group>"; };
+		C819F2F01F0E132500E3AE76 /* ZCHTTPSessionManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZCHTTPSessionManager.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +123,7 @@
 				C819F2AE1F0DE78000E3AE76 /* AppDelegate.m */,
 				C819F2B01F0DE78000E3AE76 /* ViewController.h */,
 				C819F2B11F0DE78000E3AE76 /* ViewController.m */,
+				C819F2DF1F0E0FE600E3AE76 /* ZCNetworking */,
 				C819F2B31F0DE78000E3AE76 /* Main.storyboard */,
 				C819F2B61F0DE78000E3AE76 /* Assets.xcassets */,
 				C819F2B81F0DE78000E3AE76 /* LaunchScreen.storyboard */,
@@ -138,6 +157,25 @@
 				C819F2D11F0DE78000E3AE76 /* Info.plist */,
 			);
 			path = ZCNetWorkingUITests;
+			sourceTree = "<group>";
+		};
+		C819F2DF1F0E0FE600E3AE76 /* ZCNetworking */ = {
+			isa = PBXGroup;
+			children = (
+				C819F2EF1F0E132500E3AE76 /* ZCHTTPSessionManager.h */,
+				C819F2F01F0E132500E3AE76 /* ZCHTTPSessionManager.m */,
+				C819F2EC1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.h */,
+				C819F2ED1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.m */,
+				C819F2E91F0E12C400E3AE76 /* ZCSercurityPolicy.h */,
+				C819F2EA1F0E12C400E3AE76 /* ZCSercurityPolicy.m */,
+				C819F2E61F0E129700E3AE76 /* ZCURLRequestSerialization.h */,
+				C819F2E71F0E129700E3AE76 /* ZCURLRequestSerialization.m */,
+				C819F2E31F0E127800E3AE76 /* ZCURLResponseSerialization.h */,
+				C819F2E41F0E127800E3AE76 /* ZCURLResponseSerialization.m */,
+				C819F2E01F0E124600E3AE76 /* ZCURLSessionManager.h */,
+				C819F2E11F0E124600E3AE76 /* ZCURLSessionManager.m */,
+			);
+			name = ZCNetworking;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -273,9 +311,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C819F2E51F0E127800E3AE76 /* ZCURLResponseSerialization.m in Sources */,
+				C819F2F11F0E132500E3AE76 /* ZCHTTPSessionManager.m in Sources */,
+				C819F2E81F0E129700E3AE76 /* ZCURLRequestSerialization.m in Sources */,
 				C819F2B21F0DE78000E3AE76 /* ViewController.m in Sources */,
 				C819F2AF1F0DE78000E3AE76 /* AppDelegate.m in Sources */,
+				C819F2EE1F0E12F800E3AE76 /* ZCNetworkReachabilityManager.m in Sources */,
 				C819F2AC1F0DE78000E3AE76 /* main.m in Sources */,
+				C819F2E21F0E124600E3AE76 /* ZCURLSessionManager.m in Sources */,
+				C819F2EB1F0E12C400E3AE76 /* ZCSercurityPolicy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
