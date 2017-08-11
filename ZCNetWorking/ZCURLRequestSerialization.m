@@ -608,7 +608,7 @@ NSTimeInterval const kZCUploadStream3GSuggestedDelay = 0.2;
 @property (readonly, nonatomic, assign) unsigned long long contentLength;
 @property (readonly, nonatomic, assign, getter=isEmpty) BOOL empty;
 
-- (instancetype)initwithStringEncoding:(NSStringEncoding)encoding;
+- (instancetype)initWithStringEncoding:(NSStringEncoding)encoding;
 - (void)setInitialAndFinalBoundaries;
 - (void)appendHTTPBodyPart:(ZCHTTPBodyPart *)bodyPart;
 @end
@@ -717,6 +717,8 @@ NSTimeInterval const kZCUploadStream3GSuggestedDelay = 0.2;
     bodyPart.bodyContentLength = (unsigned long long)length;
     
     [self.bodyStream appendHTTPBodyPart:bodyPart];
+    
+    return nil;
 }
 
 - (void)appendPartWithFromData:(NSData *)data
@@ -771,7 +773,75 @@ NSTimeInterval const kZCUploadStream3GSuggestedDelay = 0.2;
     [self.bodyStream setInitialAndFinalBoundaries];
     [self.request setHTTPBodyStream:self.bodyStream];
     
-    [self.request setValue:[NSString stringWithFormat:@""] forHTTPHeaderField:<#(nonnull NSString *)#>];
+    [self.request setValue:[NSString stringWithFormat:@"multipart/form-data; boundary=%@", self.boundary] forHTTPHeaderField:@"Content-Type"];
+    [self.request setValue:[NSString stringWithFormat:@"%llu", [self.bodyStream contentLength]] forHTTPHeaderField:@"Cotent-Length"];
+    
+    return self.request;
+}
+@end
+
+#pragma mark - 
+
+@interface NSStream ()
+@property (readwrite) NSStreamStatus streamStatus;
+@property (readwrite, copy) NSError *streamError;
+@end
+
+
+@interface ZCMultipartBodyStream () <NSCopying>
+@property (readwrite, nonatomic, assign) NSStringEncoding stringEncoding;
+@property (readwrite, nonatomic, strong) NSMutableArray *HTTPBodyParts;
+@property (readwrite, nonatomic, strong) NSEnumerator *HTTPBodyPartEnumerator;
+@property (readwrite, nonatomic, strong) ZCHTTPBodyPart *currentHTTPBodyPart;
+@property (readwrite, nonatomic, strong) NSOutputStream *outputStream;
+@property (readwrite, nonatomic, strong) NSMutableData *buffer;
+@end
+
+@implementation ZCMultipartBodyStream
+#if (defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 80000) || (defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 1100)
+@synthesize delegate;
+#endif
+@synthesize streamStatus;
+@synthesize streamError;
+
+- (instancetype)initWithStringEncoding:(NSStringEncoding)encoding{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.stringEncoding = encoding;
+    self.HTTPBodyParts = [NSMutableArray array];
+    self.numberOfBytesInPacket = NSIntegerMax;
+    
+    return self;
+}
+
+- (void)setInitialAndFinalBoundaries{
+    if ([self.HTTPBodyParts count] > 0) {
+        for (ZCHTTPBodyPart *bodyPart in self.HTTPBodyParts) {
+            bodyPart.hasInitialBoundary = NO;
+            bodyPart.hasFinalBoundary = NO;
+        }
+        
+        [[self.HTTPBodyParts firstObject] setHasInitialBoundary:YES];
+        [[self.HTTPBodyParts lastObject] setHasFinalBoundary:YES];
+    }
+}
+
+- (void)appendHTTPBodyPart:(ZCHTTPBodyPart *)bodyPart{
+    [self.HTTPBodyParts addObject:bodyPart];
+}
+
+- (BOOL)isEmpty{
+    return [self.HTTPBodyParts count] == 0;
+}
+
+#pragma mark - NSInputStream
+
+- (NSInteger)read:(uint8_t *)buffer
+        maxLength:(NSUInteger)len{
+    
 }
 @end
 
