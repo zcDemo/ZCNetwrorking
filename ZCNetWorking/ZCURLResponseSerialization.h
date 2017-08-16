@@ -108,6 +108,6 @@ FOUNDATION_EXPORT NSString * const ZCURLResponseSerializerErrorDomain;
 
 FOUNDATION_EXPORT NSString * const ZCNetworkingOperationFailingURLResponseErrorKey;
 
-FOUNDATION_EXPORT NSString * const ZCNetworkingOpertaionFailingURLResponseDataErrorKey;
+FOUNDATION_EXPORT NSString * const ZCNetworkingOperationFailingURLResponseDataErrorKey;
 
 NS_ASSUME_NONNULL_END

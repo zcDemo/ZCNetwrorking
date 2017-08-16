@@ -100,14 +100,430 @@ static id ZCJSONObjectByRemovingKeysWithNullValues(id JSONObject, NSJSONReadingO
     if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
         if (self.acceptableContentTypes && ![self.acceptableContentTypes containsObject:[response MIMEType]] && !([response MIMEType] == nil && [data length] == 0)) {
             if ([data length] > 0 && [response URL]) {
-                NSMutableDictionary *mutableUserInfo = 
+                NSMutableDictionary *mutableUserInfo = [@{NSLocalizedDescriptionKey: [NSString stringWithFormat:NSLocalizedStringFromTable(@"Request failed: unacceptable content-type: %@", @"ZCNetworking", nil), [response MIMEType]],
+                                                          NSURLErrorFailingURLErrorKey: [response URL], ZCNetworkingOperationFailingURLResponseErrorKey: response} mutableCopy];
+                if (data) {
+                    mutableUserInfo[ZCNetworkingOperationFailingURLResponseDataErrorKey] = data;
+                }
+                
+                validationError = ZCErrorWithUnderlyingError([NSError errorWithDomain:ZCURLResponseSerializationErrorDomain code:NSURLErrorCannotDecodeContentData userInfo:mutableUserInfo], validationError);
             }
+            
+            responseIsValid = NO;
+        }
+        
+        if (self.acceptableStatusCodes && ![self.acceptableStatusCodes containsIndex:(NSUInteger)response.statusCode] && [response URL]) {
+            NSMutableDictionary *mutableUserInfo = [@{NSLocalizedDescriptionKey: [NSString stringWithFormat:NSLocalizedStringFromTable(@"Request faildL %@ (%ld)", @"ZCNetworking", nil), [NSHTTPURLResponse localizedStringForStatusCode:response.statusCode],(long)response.statusCode],NSURLErrorFailingURLErrorKey:[response URL], ZCNetworkingOperationFailingURLResponseErrorKey: response } mutableCopy];
+            
+            if (data) {
+                mutableUserInfo[ZCNetworkingOperationFailingURLResponseErrorKey] = data;
+            }
+            
+            validationError = ZCErrorWithUnderlyingError([NSError errorWithDomain:ZCURLResponseSerializationErrorDomain code:NSURLErrorBadServerResponse userInfo:mutableUserInfo], validationError);
+            
+            responseIsValid = NO;
+            
         }
     }
     
+    if (error && !responseIsValid) {
+        *error = validationError;
+    }
     
+    return responseIsValid;
+}
+
+#pragma mark - ZCURLResponseSerialization
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    [self validateResponse:(NSHTTPURLResponse *)response data:data error:error];
+    return  data;
+}
+
+
+#pragma mark - NSSecureCoding
+
++ (BOOL)supportsSecureCoding{
+    return YES;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [self init];
+    if (!self) {
+        return  nil;
+    }
+    
+    self.acceptableStatusCodes = [aDecoder decodeObjectOfClass:[NSIndexSet class] forKey:NSStringFromSelector(@selector(acceptableStatusCodes))];
+    self.acceptableContentTypes = [aDecoder decodeObjectOfClass:[NSIndexSet class] forKey:NSStringFromSelector(@selector(acceptableContentTypes))];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [aCoder encodeObject:self.acceptableStatusCodes forKey:NSStringFromSelector(@selector(acceptableStatusCodes))];
+    [aCoder encodeObject:self.acceptableContentTypes forKey:NSStringFromSelector(@selector(acceptableContentTypes))];
+}
+
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone{
+    ZCHTTPResponseSerializer *serializer = [[[self class] allocWithZone:zone] init];
+    serializer.acceptableStatusCodes = [serializer.acceptableStatusCodes copyWithZone:zone];
+    serializer.acceptableContentTypes = [serializer.acceptableContentTypes copyWithZone:zone];
+    
+    return serializer;
 }
 
 @end
 
+#pragma mark - 
 
+@implementation ZCJSONResponseSerializer
+
++ (instancetype)serializer{
+    return [self serializerWithReadingOptions:(NSJSONReadingOptions)0];
+}
+
++ (instancetype)serializerWithReadingOptions:(NSJSONReadingOptions)readingOptions{
+    ZCJSONResponseSerializer *serializer = [[self alloc] init];
+    serializer.readingOptions = readingOptions;
+    
+    return serializer;
+}
+
+- (instancetype)init{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.acceptableContentTypes = [NSSet setWithObjects:@"application/json", @"text/json", @"text/javascript", nil];
+    
+    return self;
+}
+
+#pragma mark - ZCURLResponseSerialization
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeRawData, ZCURLResponseSerializerErrorDomain)) {
+            return nil;
+            
+        }
+    }
+    
+    BOOL isSpace = [data isEqualToData:[NSData dataWithBytes:@" " length:1]];
+    if (data.length == 0 || isSpace) {
+        return nil;
+    }
+    
+    NSError *serializationError = nil;
+    
+    id responseObject = [NSJSONSerialization JSONObjectWithData:data options:self.readingOptions error:&serializationError];
+    if (!responseObject) {
+        if (error) {
+            *error = ZCErrorWithUnderlyingError(serializationError, *error);
+        }
+        
+        return nil;
+    }
+    
+    if (self.removesKeysWithNullValues) {
+        return ZCJSONObjectByRemovingKeysWithNullValues(responseObject, self.readingOptions);
+    }
+    
+    return responseObject;
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.readingOptions = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(readingOptions))] unsignedIntegerValue];
+    self.removesKeysWithNullValues = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(removesKeysWithNullValues))] boolValue];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+    [aCoder encodeObject:@(self.readingOptions) forKey:NSStringFromSelector(@selector(readingOptions))];
+    [aCoder encodeObject:@(self.removesKeysWithNullValues) forKey:NSStringFromSelector(@selector(removesKeysWithNullValues))];
+}
+
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone{
+    ZCJSONResponseSerializer *serializer = [super copyWithZone:zone];
+    self.readingOptions = self.readingOptions;
+    serializer.removesKeysWithNullValues = self.removesKeysWithNullValues;
+    
+    return serializer;
+}
+
+@end
+
+#pragma mark - 
+
+@implementation ZCXMLParserResponseSerializer
+
++ (instancetype)serializer{
+    return  [[self alloc] init];
+}
+
+- (instancetype)init{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.acceptableContentTypes = [[NSSet alloc] initWithObjects:@"applicaiton/xml", @"text/xml",nil];
+    
+    return self;
+}
+
+#pragma mark - ZCURLResponseSerialization
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeContentData, ZCURLResponseSerializationErrorDomain)) {
+            return nil;
+        }
+    }
+    
+    return [[NSXMLParser alloc] initWithData:data];
+}
+
+@end
+
+#pragma mark - 
+
+#ifdef  __MAC_OS_X_VERSION_MIN_REQUIRED
+
+@implementation ZCXMLDocumentrResponseSerializer
+
++ (instancetype)serializer{
+    return [self serializerWithXMLDocumentOptions:0];
+}
+
++ (instancetype)serializerWithXMLDocumentOptions:(NSUInteger)mask{
+    ZCXMLDocumentrResponseSerializer *serializer = [[self alloc] init];
+    serializer.options = mask;
+    
+    return serializer;
+}
+
+- (instancetype)init{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.acceptableContentTypes = [[NSSet alloc] initWithObjects:@"applicaiton/xml", @"text/xml",nil];
+    return self;
+}
+
+#pragma mark - ZCURLResponseSerializaton
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeContentData, ZCURLResponseSerializationErrorDomain)) {
+            return nil;
+        }
+    }
+    
+    NSError *serializationError = nil;
+    NSXMLDocument *document = [[NSXMLDocument alloc] initWithData:data options:self.options error:&serializationError];
+    if (!document)
+    {
+        if (error) {
+            *error = AFErrorWithUnderlyingError(serializationError, *error);
+        }
+        return nil;
+    }
+    
+    return document;
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)decoder {
+    self = [super initWithCoder:decoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.options = [[decoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(options))] unsignedIntegerValue];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [super encodeWithCoder:coder];
+    
+    [coder encodeObject:@(self.options) forKey:NSStringFromSelector(@selector(options))];
+}
+
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone {
+    AFXMLDocumentResponseSerializer *serializer = [super copyWithZone:zone];
+    serializer.options = self.options;
+    
+    return serializer;
+}
+
+@end
+
+#endif
+
+#pragma mark - 
+
+@implementation ZCPropertyListResponseSerializer
+
++ (instancetype)serializer{
+    return [self serializerWithFormat:NSPropertyListXMLFormat_v1_0 readOptions:0];
+}
+
++ (instancetype)serializerWithFormat:(NSPropertyListFormat)format
+                         readOptions:(NSPropertyListReadOptions)readOptions{
+    ZCPropertyListResponseSerializer *serializer = [[self alloc] init];
+    serializer.format = format;
+    serializer.readOptions = readOptions;
+    
+    return serializer;
+}
+
+- (instancetype)init{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.acceptableContentTypes = [[NSSet alloc] initWithObjects:@"application/x-plist", nil];
+    
+    return self;
+}
+
+#pragma mark - ZCURLResponseSerialization
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeContentData, ZCURLResponseSerializationErrorDomain)) {
+            return nil;
+        }
+    }
+    
+    if (!data) {
+        return nil;
+    }
+    
+    NSError *serializationError = nil;
+    
+    id responseObject = [NSPropertyListSerialization propertyListWithData:data options:self.readOptions format:NULL error:&serializationError];
+    
+    if (!responseObject) {
+        if (error) {
+            *error = ZCErrorWithUnderlyingError(serializationError, *error);
+        }
+        return nil;
+    }
+    
+    return responseObject;
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.format = (NSPropertyListFormat)[[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(format))] unsignedIntegerValue];
+    self.readOptions = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(readOptions))] unsignedIntegerValue];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+    [aCoder encodeObject:@(self.format) forKey:NSStringFromSelector(@selector(format))];
+    [aCoder encodeObject:@(self.readOptions) forKey:NSStringFromSelector(@selector(readOptions))];
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone{
+    ZCPropertyListResponseSerializer *serializer = [super copyWithZone:zone];
+    serializer.format = self.format;
+    serializer.readOptions = self.readOptions;
+    
+    return serializer;
+}
+
+@end
+
+#pragma mark - 
+
+//#if TARGET_IOS || TARGET_OS_TV || TARGET_OS_WATCH
+#import <CoreGraphics/CoreGraphics.h>
+#import <UIKit/UIKit.h>
+
+@interface UIImage (ZCNetworkingSafeImageLoading)
++ (UIImage *)zc_safeImageWithData:(NSData *)data;
+@end
+
+static NSLock *imageLock = nil;
+
+@implementation UIImage (ZCImageResponseSerializer)
+
++ (UIImage *)zc_safeImageWithData:(NSData *)data{
+    UIImage *image = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        imageLock = [[NSLock alloc] init];
+    });
+    
+    [imageLock lock];
+    image = [UIImage imageWithData:data];
+    [imageLock unlock];
+    return image;
+}
+
+@end
+
+static UIImage * ZCImageWithDataAtScale(NSData *data, CGFloat scale){
+    UIImage *image = [UIImage zc_safeImageWithData:data];
+    if (image.images) {
+        return image;
+    }
+    
+    return [[UIImage alloc] initWithCGImage:[image CGImage] scale:scale orientation:image.imageOrientation];
+}
+
+static UIImage * ZCInflatedImageFromResponseWithDataScale(NSHTTPURLResponse *response, NSData *data, CGFloat scale){
+    if (!data || [data length] == 0) {
+        return nil;
+    }
+    
+    CGImageRef imageRef = NULL;
+    CGDataProviderRef dataProvider = 
+}
+//#endif
