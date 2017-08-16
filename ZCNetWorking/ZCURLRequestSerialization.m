@@ -1134,10 +1134,192 @@ typedef enum {
     return YES;
 }
 
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone{
+    ZCHTTPBodyPart *bodyPart = [[[self class] allocWithZone:zone] init];
+    
+    bodyPart.stringEncoding = self.stringEncoding;
+    bodyPart.headers = self.headers;
+    bodyPart.bodyContentLength = self.bodyContentLength;
+    bodyPart.body = self.body;
+    bodyPart.boundary = self.boundary;
+    
+    return bodyPart;
+}
 
 @end
 
-@implementation ZCURLRequestSerialization : NSObject
+#pragma mark - 
 
+@implementation ZCJSONRequestSerializer
+
++ (instancetype)serializer{
+    return [self serializerWithWritingOptions:(NSJSONWritingOptions)0];
+}
+
++ (instancetype)serializerWithWritingOptions:(NSJSONWritingOptions)writingOptions{
+    ZCJSONRequestSerializer *serializer = [[self alloc] init];
+    serializer.writingOptions = writingOptions;
+    
+    return serializer;
+}
+
+#pragma mark - ZCURLRequestSerialization
+
+- (NSURLRequest *)requestBySerializingRequest:(NSURLRequest *)request
+                               withParameters:(id)parameters
+                                        error:(NSError *__autoreleasing  _Nullable *)error{
+    NSParameterAssert(request);
+    
+    if ([self.HTTPMethodsEncodingParametersInURI containsObject:[[request HTTPMethod] uppercaseString]]) {
+        return [super requestBySerializingRequest:request withParameters:parameters error:error];
+    }
+    
+    NSMutableURLRequest *mutableRequest = [request mutableCopy];
+    
+    [self.HTTPRequestHeaders enumerateKeysAndObjectsUsingBlock:^(id field, id value, BOOL * _Nonnull stop) {
+        if (![request valueForHTTPHeaderField:field]) {
+            [mutableRequest setValue:value forHTTPHeaderField:field];
+        }
+    }];
+    
+    if (parameters) {
+        if (![mutableRequest valueForHTTPHeaderField:@"Content-Type"]) {
+            [mutableRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+        }
+        
+        if (![NSJSONSerialization isValidJSONObject:parameters]) {
+            if (error) {
+                NSDictionary *userInfo = @{NSLocalizedFailureReasonErrorKey: NSLocalizedStringFromTable(@"The 'parameters argument is not valid JSON'", @"ZCNetworking", nil)};
+                *error = [[NSError alloc] initWithDomain:ZCURLRequestSerializationErrorDomain code:NSURLErrorCannotDecodeContentData userInfo:userInfo];
+            }
+            return nil;
+        }
+        
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:parameters options:self.writingOptions error:error];
+        
+        if (!jsonData) {
+            return nil;
+        }
+        
+        [mutableRequest setHTTPBody:jsonData];
+    }
+    
+    return mutableRequest;
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.writingOptions = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(writingOptions))] unsignedIntegerValue];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+    [aCoder encodeInteger:self.writingOptions forKey:NSStringFromSelector(@selector(writingOptions))];
+}
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone{
+    ZCJSONRequestSerializer *serializer = [super copyWithZone:zone];
+    self.writingOptions = self.writingOptions;
+    
+    return serializer;
+}
+
+@end
+
+#pragma mark - 
+
+@implementation ZCPropertyListRequestSerializer
+
++ (instancetype)serializer{
+    return [self serializerWithFormate:NSPropertyListXMLFormat_v1_0 writeOptions:0];
+}
+
++ (instancetype)serializerWithFormate:(NSPropertyListFormat)format writeOptions:(NSPropertyListWriteOptions)writeOptions{
+    ZCPropertyListRequestSerializer *serializer = [[self alloc] init];
+    serializer.format = format;
+    serializer.writeOptions = writeOptions;
+    
+    return serializer;
+}
+
+#pragma mark - ZCURLRequestSerializer
+
+- (NSURLRequest *)requestBySerializingRequest:(NSURLRequest *)request
+                               withParameters:(id)parameters
+                                        error:(NSError *__autoreleasing  _Nullable *)error{
+    NSParameterAssert(request);
+    
+    if ([self.HTTPMethodsEncodingParametersInURI containsObject:[[request HTTPMethod] uppercaseString]]) {
+        return [super requestBySerializingRequest:request withParameters:parameters error:error];
+    }
+    
+    NSMutableURLRequest *mutableRequest = [request mutableCopy];
+    
+    [self.HTTPRequestHeaders enumerateKeysAndObjectsUsingBlock:^(id field, id value, BOOL * _Nonnull stop) {
+        if (![request valueForHTTPHeaderField:field]) {
+            [mutableRequest setValue:value forHTTPHeaderField:field];
+        }
+    }];
+    
+    if (parameters) {
+        if (![mutableRequest valueForHTTPHeaderField:@"Content-Type"]) {
+            [mutableRequest setValue:@"application/x-plist" forHTTPHeaderField:@"Content-Type"];
+        }
+        
+        NSData *plistData = [NSPropertyListSerialization dataWithPropertyList:parameters format:self.format options:self.writeOptions error:error];
+        
+        if (!plistData) {
+            return nil;
+        }
+        
+        [mutableRequest setHTTPBody:plistData];
+    }
+    
+    return mutableRequest;
+    
+}
+
+#pragma mark - NSSecuerCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.format = (NSPropertyListFormat)[[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(format))] unsignedIntegerValue];
+    self.writeOptions = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(writeOptions))] unsignedIntegerValue];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+    [aCoder encodeInteger:self.format forKey:NSStringFromSelector(@selector(format))];
+    [aCoder encodeObject:@(self.writeOptions) forKey:NSStringFromSelector(@selector(writeOptions))];
+}
+
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone *)zone{
+    ZCPropertyListRequestSerializer *serializer = [super copyWithZone:zone];
+    serializer.format = self.format;
+    serializer.writeOptions = self.writeOptions;
+    
+    return serializer;
+}
 
 @end

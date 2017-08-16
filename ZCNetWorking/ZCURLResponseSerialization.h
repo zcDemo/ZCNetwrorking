@@ -26,7 +26,7 @@ NS_ASSUME_NONNULL_BEGIN //在这之间的对象为 nonull 如果为null或者为
 
 + (instancetype)serializer;
 
-@property (nonatomic, copy, nullable) NSIndexSet *accepttableStatusCodes;
+@property (nonatomic, copy, nullable) NSIndexSet *acceptableStatusCodes;
 
 @property (nonatomic, copy, nullable) NSSet <NSString *> *acceptableContentTypes;
 
