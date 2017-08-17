@@ -482,7 +482,7 @@ static id ZCJSONObjectByRemovingKeysWithNullValues(id JSONObject, NSJSONReadingO
 
 #pragma mark - 
 
-//#if TARGET_IOS || TARGET_OS_TV || TARGET_OS_WATCH
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH
 #import <CoreGraphics/CoreGraphics.h>
 #import <UIKit/UIKit.h>
 
@@ -524,6 +524,236 @@ static UIImage * ZCInflatedImageFromResponseWithDataScale(NSHTTPURLResponse *res
     }
     
     CGImageRef imageRef = NULL;
-    CGDataProviderRef dataProvider = 
+    CGDataProviderRef dataProvider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
+    
+    if ([response.MIMEType isEqualToString:@"image/png"]) {
+        imageRef = CGImageCreateWithPNGDataProvider(dataProvider, NULL, true, kCGRenderingIntentDefault);
+    } else if ([response.MIMEType isEqualToString:@"image/jpeg"]){
+        imageRef = CGImageCreateWithJPEGDataProvider(dataProvider, NULL, true, kCGRenderingIntentDefault);
+        
+        if (imageRef) {
+            CGColorSpaceRef imageColorSpace = CGImageGetColorSpace(imageRef);
+            CGColorSpaceModel imageColorSpaceModel = CGColorSpaceGetModel(imageColorSpace);
+            
+            if (imageColorSpaceModel == kCGColorSpaceModelCMYK) {
+                CGImageRelease(imageRef);
+                imageRef = NULL;
+            }
+        }
+    }
+    
+    CGDataProviderRelease(dataProvider);
+    
+    UIImage *image = ZCImageWithDataAtScale(data, scale);
+    if (!imageRef) {
+        if (image.images || !image) {
+            return image;
+        }
+        
+        imageRef = CGImageCreateCopy([image CGImage]);
+        if (!imageRef) {
+            return nil;
+        }
+    }
+    
+    size_t width = CGImageGetWidth(imageRef);
+    size_t height = CGImageGetHeight(imageRef);
+    size_t bitsPerComponent = CGImageGetBitsPerComponent(imageRef);
+    
+    if (width * height > 1024 * 1024 || bitsPerComponent > 8) {
+        CGImageRelease(imageRef);
+        
+        return image;
+    }
+    
+    size_t bytesPerRow = 0;
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGColorSpaceModel colorSpaceModel = CGColorSpaceGetModel(colorSpace);
+    CGBitmapInfo bitmapInfo = CGImageGetBitmapInfo(imageRef);
+    
+    if (colorSpaceModel == kCGColorSpaceModelRGB) {
+        uint32_t alpha = (bitmapInfo & kCGBitmapAlphaInfoMask);
+        
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
+        if (alpha == kCGImageAlphaNone) {
+            bitmapInfo &= ~kCGBitmapAlphaInfoMask;
+            bitmapInfo |= kCGImageAlphaNoneSkipFirst;
+        } else if (!(alpha == kCGImageAlphaNoneSkipFirst || alpha == kCGImageAlphaNoneSkipLast)){
+            bitmapInfo &= ~kCGBitmapAlphaInfoMask;
+            bitmapInfo |= kCGImageAlphaPremultipliedFirst;
+        }
+#pragma clang diagnostic pop
+    }
+    
+    CGContextRef context  = CGBitmapContextCreate(NULL, width, height, bitsPerComponent, bytesPerRow, colorSpace, bitmapInfo);
+    
+    CGColorSpaceRelease(colorSpace);
+    
+    if (!context) {
+        CGImageRelease(imageRef);
+        
+        return image;
+    }
+    
+    CGContextDrawImage(context, CGRectMake(0, 0, width, height), imageRef);
+    CGImageRef inflatedImageRef = CGBitmapContextCreateImage(context);
+    
+    CGContextRelease(context);
+    
+    UIImage *inflatedImage = [[UIImage alloc] initWithCGImage:inflatedImageRef scale:scale orientation:image.imageOrientation];
+    
+    CGImageRelease(inflatedImageRef);
+    CGImageRelease(imageRef);
+    
+    return inflatedImage;
 }
-//#endif
+#endif
+
+@implementation ZCImageResponseSerializer
+
+- (instancetype)init{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.acceptableContentTypes = [[NSSet alloc] initWithObjects:@"image/tiff", @"image/jpeg", @"image/gif", @"image/png", @"image/ico", @"image/x-icon", @"image/bmp", @"image/x-bmp", @"image/x-xbitmap", @"image/x-win-bitmap", nil];
+    self.imageScale = [[UIScreen mainScreen] scale];
+    self.automaticallyInflatesResponseImage = YES;
+    
+    return self;
+}
+
+#pragma mark - ZCURLResponseSerializer
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeContentData, ZCURLResponseSerializationErrorDomain)) {
+            return nil;
+        }
+    }
+    
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH
+    if (self.automaticallyInflatesResponseImage) {
+        return ZCInflatedImageFromResponseWithDataScale((NSHTTPURLResponse *)response, data, self.imageScale);
+    } else {
+        return ZCImageWithDataAtScale(data, self.imageScale);
+    }
+#endif
+    return nil;
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+#if TARGET_OS_IOS || TAGET_OS_TV || TARGET_OS_WATCH
+    NSNumber *imageScale = [aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(imageScale))];
+#if CGFLOAT_IS_DOUBLE
+    self.imageScale = [imageScale doubleValue];
+#else
+    self.imageScale = [imageScale floatValue];
+#endif
+    self.automaticallyInflatesResponseImage = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(automaticallyInflatesResponseImage))];
+#endif
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH
+    [aCoder encodeObject:@(self.imageScale) forKey:NSStringFromSelector(@selector(imageScale))];
+    [aCoder encodeBool:self.automaticallyInflatesResponseImage forKey:NSStringFromSelector(@selector(automaticallyInflatesResponseImage))];
+#endif
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone{
+    ZCImageResponseSerializer *serializer = [super copyWithZone:zone];
+    
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH
+    serializer.imageScale = self.imageScale;
+    self.automaticallyInflatesResponseImage = self.automaticallyInflatesResponseImage;
+#endif
+    
+    return serializer;
+}
+@end
+
+#pragma mark - 
+
+@interface ZCCompoundResponseSerializer ()
+@property (readwrite, nonatomic, copy) NSArray * responseSerializers;
+@end
+
+@implementation ZCCompoundResponseSerializer
+
++ (instancetype)compoundSerailizerWithResponseSerializers:(NSArray<id<ZCURLResponseSerialization>> *)responseSerializers{
+    ZCCompoundResponseSerializer *serializer = [[self alloc] init];
+    serializer.responseSerializers = responseSerializers;
+    
+    return serializer;
+}
+
+#pragma mark - ZCURLReponseSerialization
+
+- (id)responseObjectForResponse:(NSURLResponse *)response
+                           data:(NSData *)data
+                          error:(NSError *__autoreleasing  _Nullable *)error{
+    for (id <ZCURLResponseSerialization> serializer in self.responseSerializers) {
+        if (![serializer isKindOfClass:[ZCHTTPResponseSerializer class]]) {
+            continue;
+        }
+        
+        NSError *serializerError = nil;
+        id responseObject = [serializer responseObjectForResponse:response data:data error:&serializerError];
+        if (responseObject) {
+            if (error) {
+                *error = ZCErrorWithUnderlyingError(serializerError, *error);
+            }
+            
+            return responseObject;
+        }
+    }
+    
+    return [super responseObjectForResponse:response data:data error:error];
+}
+
+#pragma mark - NSSecureCoding
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [super initWithCoder:aDecoder];
+    if (!self) {
+        return nil;
+    }
+    
+    self.responseSerializers = [aDecoder decodeObjectOfClass:[NSArray class] forKey:NSStringFromSelector(@selector(responseSerializers))];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [super encodeWithCoder:aCoder];
+    
+    [aCoder encodeObject:self.responseSerializers forKey:NSStringFromSelector(@selector(responseSerializers))];
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone{
+    ZCCompoundResponseSerializer *serializer = [super copyWithZone:zone];
+    serializer.responseSerializers = serializer.responseSerializers;
+    
+    return serializer;
+}
+
+@end
