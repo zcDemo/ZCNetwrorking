@@ -167,5 +167,70 @@ static void ZCNetworkReachabilityReleaseCallback(const void *info){
     return self.networkReachabilityStatus == ZCNetworkingReachabilityStatusReachableViaWWAN;
 }
 
+- (BOOL)isReachabilityViaWiFi{
+    return self.networkReachabilityStatus == ZCNetworkingReachabilityStatusReachableViaWiFi;
+}
+
+#pragma mark -
+
+- (void)startMonitoring{
+    [self stopMonitoring];
+    
+    if (!self.networkReachability) {
+        return;
+    }
+    
+    __weak __typeof(self)weakSelf = self;
+    ZCNetworkingReachabilityStatusBlock callback = ^(ZCNetworkingReachabilityStatus status){
+        __strong __typeof(self)strongSelf = self;
+        
+        strongSelf.networkReachabilityStatus = status;
+        if (strongSelf.networkReachabilityStatusBlock) {
+            strongSelf.networkReachabilityStatusBlock(status);
+        }
+    };
+    
+    SCNetworkReachabilityContext context = {0, (__bridge void *)callback, ZCNetworkReachabilityRetainCallback, ZCNetworkReachabilityReleaseCallback, NULL};
+    SCNetworkReachabilitySetCallback(self.networkReachability, ZCNetworkingReachabilityCallback, &context);
+    SCNetworkReachabilityScheduleWithRunLoop(self.networkReachability, CFRunLoopGetMain(), kCFRunLoopCommonModes);
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        SCNetworkReachabilityFlags flags;
+        if (SCNetworkReachabilityGetFlags(self.networkReachability, &flags)) {
+            ZCPostReachabilityStatusChange(flags, callback);
+        }
+    });
+}
+
+- (void)stopMonitoring{
+    if (!self.networkReachability) {
+        return;
+    }
+    
+    SCNetworkReachabilityUnscheduleFromRunLoop(self.networkReachability, CFRunLoopGetMain(), kCFRunLoopCommonModes);
+}
+
+#pragma mark - 
+
+- (NSString *)localizedNetworkReachabilityStatusString{
+    return ZCStringFromNetworkReachabilityStatus(self.networkReachabilityStatus);
+}
+
+#pragma mark - 
+
+- (void)setReachabilityStatusChangeBlock:(void (^)(ZCNetworkingReachabilityStatus status))block{
+    self.networkReachabilityStatusBlock = block;
+}
+
+#pragma mark - NSKeyValueObserving
+
++ (NSSet<NSString *> *)keyPathsForValuesAffectingValueForKey:(NSString *)key{
+    if ([key isEqualToString:@"reachable"] || [key isEqualToString:@"reachableViaWWAN"] || [key isEqualToString:@"reachableViaWiFi"]) {
+        return [NSSet setWithObject:@"networkReachabilityStatus"];
+    }
+    
+    return [super keyPathsForValuesAffectingValueForKey:key];
+}
+
 @end
 #endif

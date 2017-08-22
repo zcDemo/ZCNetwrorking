@@ -29,7 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (readonly, nonatomic, assign, getter = isReachableViaWWAN) BOOL reachableViaWWAN;
 
-@property (readonly, nonatomic, assign, getter = isReachabilityViaWiFi) BOOL reachabilityViaWiFi;
+@property (readonly, nonatomic, assign, getter = isReachabilityViaWiFi) BOOL reachableViaWiFi;
 
 
 
