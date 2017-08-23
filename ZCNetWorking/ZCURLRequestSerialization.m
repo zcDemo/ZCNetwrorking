@@ -366,7 +366,7 @@ static void *ZCHTTPRequestSerializerObserverContext = &ZCHTTPRequestSerializerOb
             }
             
             if (data) {
-                [formData appendPartWithFormData:data name:[pari.field description]];
+                [formData appendPartWithFromData:data name:[pari.field description]];
             }
         }
     }

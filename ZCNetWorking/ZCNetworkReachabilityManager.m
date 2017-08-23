@@ -20,7 +20,7 @@ NSString * const ZCNetworkingReachabilityNotificationStatusItem = @"com.zcnetwor
 
 typedef void (^ZCNetworkingReachabilityStatusBlock)(ZCNetworkingReachabilityStatus status);
 
-NSString * ZCStringFromNetworkingReachabilityStatus(ZCNetworkingReachabilityStatus status){
+NSString * ZCStringFromNetworkReachabilityStatus(ZCNetworkingReachabilityStatus status){
     switch (status) {
         case ZCNetworkingReachabilityStatusNotReachable:
             return NSLocalizedStringFromTable(@"Not Reachable", @"ZCNetworking", nil);
@@ -182,7 +182,7 @@ static void ZCNetworkReachabilityReleaseCallback(const void *info){
     
     __weak __typeof(self)weakSelf = self;
     ZCNetworkingReachabilityStatusBlock callback = ^(ZCNetworkingReachabilityStatus status){
-        __strong __typeof(self)strongSelf = self;
+        __strong __typeof(self)strongSelf = weakSelf;
         
         strongSelf.networkReachabilityStatus = status;
         if (strongSelf.networkReachabilityStatusBlock) {

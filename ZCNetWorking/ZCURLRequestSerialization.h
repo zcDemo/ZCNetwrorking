@@ -124,7 +124,7 @@ typedef NS_ENUM(NSUInteger, ZCHTTPRequestQueryStringSerialzationStyle){
                       fileName:(NSString *)fileName
                       mimeType:(NSString *)mimeType;
 
-- (void)appendPartWithFormData:(NSData *)data name:(NSString *)name;
+- (void)appendPartWithFromData:(NSData *)data name:(NSString *)name;
 
 - (void)appendPartWithHeaders:(nullable NSDictionary <NSString *, NSString *> *)headers body:(NSData *)body;
 

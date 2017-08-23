@@ -57,9 +57,9 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 FOUNDATION_EXPORT NSString * const ZCNetworkingReachabilityDidChangeNotification;
-FOUNDATION_EXPORT NSString *const ZCNetworkingReachabilityNotificationStatusItem;
+FOUNDATION_EXPORT NSString * const ZCNetworkingReachabilityNotificationStatusItem;
 
-FOUNDATION_EXPORT NSString * const ZCStringFromNetworkReachabilityStatus(ZCNetworkingReachabilityStatus status);
+FOUNDATION_EXPORT NSString * ZCStringFromNetworkReachabilityStatus(ZCNetworkingReachabilityStatus status);
 
 NS_ASSUME_NONNULL_END
 

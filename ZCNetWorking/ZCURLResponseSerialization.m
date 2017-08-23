@@ -17,9 +17,10 @@
 #import <Cocoa/Cocoa.h>
 #endif
 
+
 NSString * const ZCURLResponseSerializationErrorDomain = @"com.zcnetworking.error.serialization.response";
 NSString * const ZCNetworkingOperationFailingURLResponseErrorKey = @"com.zcnetworking.serializaton,response.error.response";
-NSString * const ZCNerworkingOperationFailingURLResponseDataErrorKey = @"com.zcnetworking.serailzation.response.error.data";
+NSString * const ZCNetworkingOperationFailingURLResponseDataErrorKey = @"com.zcnetworking.serailzation.response.error.data";
 
 static NSError * ZCErrorWithUnderlyingError(NSError *error, NSError *underlyingError){
     if (!error) {
@@ -210,7 +211,7 @@ static id ZCJSONObjectByRemovingKeysWithNullValues(id JSONObject, NSJSONReadingO
                            data:(NSData *)data
                           error:(NSError *__autoreleasing  _Nullable *)error{
     if (![self validateResponse:(NSHTTPURLResponse *)response data:data error:error]) {
-        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeRawData, ZCURLResponseSerializerErrorDomain)) {
+        if (!error || ZCErrorOrUnderlyingErrorHasCodeInDomain(*error, NSURLErrorCannotDecodeRawData, ZCURLResponseSerializationErrorDomain)) {
             return nil;
             
         }

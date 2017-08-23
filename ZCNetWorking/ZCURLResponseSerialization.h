@@ -104,7 +104,7 @@ NS_ASSUME_NONNULL_BEGIN //在这之间的对象为 nonull 如果为null或者为
     @name Constants
  */
 
-FOUNDATION_EXPORT NSString * const ZCURLResponseSerializerErrorDomain;
+FOUNDATION_EXPORT NSString * const ZCURLResponseSerializationErrorDomain;
 
 FOUNDATION_EXPORT NSString * const ZCNetworkingOperationFailingURLResponseErrorKey;
 
