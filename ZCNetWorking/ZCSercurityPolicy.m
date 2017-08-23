@@ -187,9 +187,111 @@ static NSArray *ZCPublicKeyTrustChainForServerTrust(SecTrustRef serverTrust){
 - (BOOL)evaluateServerTrust:(SecTrustRef)serverTrust
                   forDomain:(NSString *)domain{
     if (domain && self.allowInvalidCetificates && self.validatesDomainName && (self.SSLPinningMode == ZCSSLPinningModeNone || [self.pinnedCertificates count] == 0)) {
-        
+        return NO;
     }
     
+    NSMutableArray *policies = [NSMutableArray array];
+    if (self.validatesDomainName) {
+        [policies addObject:(__bridge_transfer id)SecPolicyCreateSSL(true, (__bridge CFStringRef)domain)];
+    } else {
+        [policies addObject:(__bridge_transfer id)SecPolicyCreateBasicX509()];
+    }
+    
+    SecTrustSetPolicies(serverTrust, (__bridge CFArrayRef)policies);
+    
+    if (self.SSLPinningMode == ZCSSLPinningModeNone) {
+        return self.allowInvalidCetificates || ZCServierTrustIsValid(serverTrust);
+    } else if (!ZCServierTrustIsValid(serverTrust) && !self.allowInvalidCetificates){
+        return NO;
+    }
+    
+    switch (self.SSLPinningMode) {
+        case ZCSSLPinningModeNone:
+        default:
+            return NO;
+        
+        case ZCSSLPinningModeCertificate:{
+            NSMutableArray *pinnedCertificates = [NSMutableArray array];
+            for (NSData *certificateData in self.pinnedCertificates) {
+                [pinnedCertificates addObject:(__bridge_transfer id)SecCertificateCreateWithData(NULL, (__bridge CFDataRef)certificateData)];
+            }
+            
+            SecTrustSetAnchorCertificates(serverTrust, (__bridge CFArrayRef)pinnedCertificates);
+            
+            if (!ZCServierTrustIsValid(serverTrust)) {
+                return NO;
+            }
+            
+            NSArray *serverCertificates = ZCCertificateTrustChainForServerTrust(serverTrust);
+            
+            for (NSData *trustChainCertificate in [serverCertificates reverseObjectEnumerator]) {
+                if ([self.pinnedCertificates containsObject:trustChainCertificate]) {
+                    return YES;
+                }
+            }
+             return NO;
+        }
+        case ZCSSLPinningModePublicKey:{
+            NSUInteger trustedPublicKeyCount = 0;
+            NSArray *publicKeys = ZCPublicKeyTrustChainForServerTrust(serverTrust);
+            
+            for (id trustChainPublicKey in publicKeys) {
+                for (id pinnedPublicKey in self.pinnedPublicKeys ) {
+                    if (ZCSecKeyIsEqualToKey((__bridge SecKeyRef)trustChainPublicKey, (__bridge SecKeyRef)pinnedPublicKey)) {
+                        trustedPublicKeyCount += 1;
+                    }
+                }
+            }
+            return trustedPublicKeyCount > 0;
+        }
+    }
+    
+    return NO;
+}
+
+#pragma mark - NSKeyValueObserving
+
++ (NSSet<NSString *> *)keyPathsForValuesAffectingPinnedPublicKeys{
+    return [NSSet setWithObject:@"pinnedCertificates"];
+}
+
+#pragma mark - NSSecureCoding
+
++ (BOOL)supportsSecureCoding{
+    return YES;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder{
+    self = [self init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.SSLPinningMode = [[aDecoder decodeObjectOfClass:[NSNumber class] forKey:NSStringFromSelector(@selector(SSLPinningMode))] unsignedIntegerValue];
+    self.allowInvalidCetificates = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(allowInvalidCetificates))];
+    self.validatesDomainName = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(validatesDomainName))];
+    self.pinnedCertificates = [aDecoder decodeObjectOfClass:[NSArray class] forKey: NSStringFromSelector(@selector(pinnedCertificates))];
+    
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder{
+    [aCoder encodeObject:[NSNumber numberWithUnsignedInteger:self.SSLPinningMode] forKey:NSStringFromSelector(@selector(SSLPinningMode))];
+    [aCoder encodeBool:self.allowInvalidCetificates forKey:NSStringFromSelector(@selector(allowInvalidCetificates))];
+    [aCoder encodeBool:self.validatesDomainName forKey:NSStringFromSelector(@selector(validatesDomainName))];
+    [aCoder encodeObject:self.pinnedCertificates forKey:NSStringFromSelector(@selector(pinnedCertificates))];
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone{
+    ZCSercurityPolicy *securityPolicy = [[[self class] allocWithZone:zone] init];
+    securityPolicy.SSLPinningMode = self.SSLPinningMode;
+    securityPolicy.allowInvalidCetificates = self.allowInvalidCetificates;
+    securityPolicy.validatesDomainName = self.validatesDomainName;
+    securityPolicy.pinnedCertificates = [self.pinnedCertificates copyWithZone:zone];
+    
+    return securityPolicy;
 }
 
 @end
